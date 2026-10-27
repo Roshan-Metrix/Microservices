@@ -13,21 +13,22 @@ module.exports.register = async (req, res) => {
         }
 
         const hashPass = await bcrypt.hash(password, 10);
-        const newUser = new userModel.create({
+        const newUser = await userModel.create({
             name,
             email,
             password: hashPass
-        })
-
-        await newUser.save();
+    })
 
         const token = jwt.sign({ id: newUser._id}, process.env.JWT_SECRET, {expiresIn: '1h'});
 
         res.cookie('token', token);
 
-        res.send({message: 'User registered successfully'});
+        delete newUser._doc.password;
+
+        res.send({token, newUser});
     }catch(err){
-        res.status(500).json({success: false, message: err.message})
+        res.status(500).json({success: false, message: err.message});
+        console.log("Error in register controller:", err)
     }
 }
 
@@ -48,7 +49,9 @@ module.exports.login = async (req, res) => {
         const token = jwt.sign({id: user._id}, process.env.JWT_SECRET,{expiresIn:'1h'});
 
         res.cookie('token', token);
-        res.send({success: true, message:'User logged in successfully'});
+
+        delete user._doc.password;
+        res.send({token, user});
     }catch(error){
         res.status(500).json({success:false, message: error.message});
     }
@@ -67,6 +70,7 @@ module.exports.logout = async (req, res) => {
 
 module.exports.profile = async (req, res) => {
     try{
+        delete req.user._doc.password;
         res.send(req.user);
     }catch(error){
         res.status(500).json({success:false, message: error.message});
