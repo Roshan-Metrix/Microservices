@@ -1,12 +1,15 @@
 const express = require('express');
+const app = express();
+
 const captainRoutes = require('./routes/captain.routes');
 const dotenv = require('dotenv');
 dotenv.config();
 const cookieParser = require('cookie-parser');
 const connect = require('./db/db')
-
-const app = express();
 connect();
+
+const rabbitMq = require('./service/rabbit');
+rabbitMq.connect();
 
 app.use(express.json());
 app.use(express.urlencoded({extended: true}))

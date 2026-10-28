@@ -2,6 +2,9 @@ const captainModel = require('../models/captain.model');
 const blacklisttokenModel = require('../models/blacklisttoken.model')
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { subscribeToQueue } = require('../service/rabbit');
+
+const pendingRequests = [];
 
 module.exports.register = async (req, res) => {
     try{
@@ -70,9 +73,41 @@ module.exports.logout = async (req, res) => {
 
 module.exports.profile = async (req, res) => {
     try{
-        delete req.captain._doc.password;
-        res.send(req.captain);
+        if(!req.captain){
+            return res.status(401).json({success:false, message:'Unauthorized'});
+        }
+        res.status(200).json(req.captain);
     }catch(error){
         res.status(500).json({success:false, message: error.message});
+        console.log("Error in profile controller:", error)
     }
 }
+
+module.exports.toggleAvailability = async (req, res) => {
+    try{
+        const captain = await captainModel.findById(req.captain._id).select('-password');
+        captain.isAvailable = !captain.isAvailable;
+        await captain.save();
+        res.send(captain);
+    }catch(error){
+        res.status(500).json({success:false, message: error.message});
+        console.log("Error in toggleAvailability controller:", error)
+    }
+}
+
+module.exports.waitForNewRide = async (req, res) => {
+    req.setTimeout(30000, () => {
+        res.status(204).end();
+    });
+
+    pendingRequests.push(res);
+}
+
+subscribeToQueue("new-ride", (data) => {
+    const rideData = JSON.parse(data);
+
+    pendingRequests.forEach((res) => {
+        res.json(rideData);
+    });
+        pendingRequests.length = 0;
+    });

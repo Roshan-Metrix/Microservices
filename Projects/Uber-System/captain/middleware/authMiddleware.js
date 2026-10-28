@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const userModel = require('../models/captain.model');
+const captainModel = require('../models/captain.model');
 const blacklisttokenModel = require('../models/blacklisttoken.model');
 
 module.exports.captainAuth = async (req, res, next) => {
@@ -14,13 +14,13 @@ module.exports.captainAuth = async (req, res, next) => {
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        const user = await userModel.findById(decoded.id)
+        const captain = await captainModel.findById(decoded.id).select('-password');
 
-        if(!user){
+        if(!captain){
             return res.status(401).json({success: false, message:'Unauthorized'});
         }
 
-        req.user = user;
+        req.captain = captain;
         next();
     }catch(error){
         res.status(500).json({success:false, message:error.message});
